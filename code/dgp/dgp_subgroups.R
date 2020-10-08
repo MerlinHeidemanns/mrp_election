@@ -3,7 +3,7 @@ library(tidyverse)
 library(boot)
 library(DirichletReg)
 # fun
-
+source("code/functions/functions.R")
 # scope
 T <- 50
 R <- 4
@@ -34,7 +34,7 @@ ggplot(data = df, aes(x = t, y = mean, color = group)) +
 # sim data
 n_t <- 5
 t <- sample(1:T, n_t, replace = FALSE)
-N <- floor(runif(n_t, 1000, 1500))
+N <- floor(runif(n_t, 10000, 15000))
 N_r <- floor(rdirichlet(5, rep(10, 4)) * N)
 df_data <- data.frame(cbind(N_r, t)) %>%
   pivot_longer(starts_with("V"), names_to = "group", values_to = "N_respondents") %>%
@@ -51,9 +51,41 @@ data <- list(
   t = df_data$t,
   N_respondents = df_data$N_respondents,
   N_affirmative = df_data$N_affirmative,
-  prior_mu_sigma = 0.1,
-  prior_theta_sigma = 0.1
+  prior_mu_sigma = 1,
+  prior_theta_sigma = 1
 )
 fit <- rstan::sampling(m1, data = data, cores = 4)
+# extract data
+# mu
+mu <- inv.logit(rstan::extract(fit, pars = "mu")[[1]])
+mu_sum <- extract_quantiles_mean(mu, c(2), 50)
+ggplot(data = mu_sum, aes(x = t, y = median)) + 
+  geom_line(size = 1) + 
+  geom_ribbon(aes(x = t, ymax = q25, ymin =  q75), alpha = 0.5) + 
+  geom_ribbon(aes(x = t, ymax = q10, ymin = q90), alpha = 0.25) + 
+  theme_bw() +
+  scale_x_continuous(breaks = seq(5, 45, 10)) +
+  labs(x = "time", 
+       y = "Share", 
+       caption = "Line: Median
+                  Inner band: 50%
+                  Outer band: 80%")
+# subgroups
+# mu
+theta <- inv.logit(rstan::extract(fit, pars = "theta")[[1]])
+theta_sum <- extract_quantiles_mean(mu, c(2,3), 50)
+ggplot(data = mu_sum, aes(x = t, y = median)) + 
+  geom_line(size = 1) + 
+  geom_ribbon(aes(x = t, ymax = q25, ymin =  q75), alpha = 0.5) + 
+  geom_ribbon(aes(x = t, ymax = q10, ymin = q90), alpha = 0.25) + 
+  theme_bw() +
+  scale_x_continuous(breaks = seq(5, 45, 10)) +
+  labs(x = "time", 
+       y = "Share", 
+       caption = "Line: Median
+                  Inner band: 50%
+                  Outer band: 80%")
+
+
 
 
